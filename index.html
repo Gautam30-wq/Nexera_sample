@@ -387,7 +387,7 @@
 
     /* hero */
     .hero {
-      padding-top: 21.6rem;
+      padding-top: 15.5rem;
       display: grid;
       grid-template-columns: 1fr 47rem;
       align-items: end;
@@ -403,27 +403,66 @@
       color: #05110d;
       font: 1.8rem/4.2rem var(--mono);
       letter-spacing: .05em;
-      font-weight: 700
+      font-weight: 700;
+      animation: heroFadeDown 0.75s var(--out) 0.08s both;
+    }
+
+    @keyframes heroFadeDown {
+      from {
+        opacity: 0;
+        transform: translateY(-1.2rem);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
 
     h1 {
       font: 400 8.8rem/.98 var(--serif);
       letter-spacing: -.015em;
       margin: 2rem 0 2.6rem;
-      font-synthesis: none
+      font-synthesis: none;
+      animation: heroTitleIn 0.85s var(--out) 0.18s both;
+    }
+
+    @keyframes heroTitleIn {
+      from {
+        opacity: 0;
+        transform: translateY(2.6rem);
+        filter: blur(4px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+        filter: blur(0);
+      }
     }
 
     .lead {
       font: 400 2.5rem/4.4rem var(--sans);
       margin: 0;
-      letter-spacing: -.005em
+      letter-spacing: -.005em;
+      animation: heroFadeUp 0.85s var(--out) 0.28s both;
+    }
+
+    @keyframes heroFadeUp {
+      from {
+        opacity: 0;
+        transform: translateY(2.2rem);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
 
     .nl {
       display: flex;
       flex-direction: column;
       gap: 1.5rem;
-      padding-bottom: .4rem
+      padding-bottom: .4rem;
+      animation: heroFadeUp 0.85s var(--out) 0.38s both;
     }
 
     .nl label {
@@ -484,8 +523,9 @@
       display: flex;
       align-items: center;
       gap: 1.2rem;
-      margin-top: 8rem;
-      flex-wrap: wrap
+      margin-top: 5rem;
+      flex-wrap: wrap;
+      animation: heroFadeUp 0.85s var(--out) 0.46s both;
     }
 
     .flt-btn {
@@ -513,21 +553,22 @@
     .grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 7rem 2rem;
-      margin-top: 5.5rem
+      gap: 6.5rem 2rem;
+      margin-top: 4.5rem
     }
 
     .card {
       --d: 0ms;
       opacity: 0;
-      transform: translateY(3rem);
-      transition: opacity .8s var(--out) var(--d), transform .8s var(--out) var(--d);
-      cursor: pointer
+      transform: translateY(4.2rem);
+      transition: opacity .82s cubic-bezier(.16, 1, .3, 1) var(--d), transform .82s cubic-bezier(.16, 1, .3, 1) var(--d);
+      cursor: pointer;
+      will-change: transform, opacity;
     }
 
     .card.in {
       opacity: 1;
-      transform: none
+      transform: translateY(0);
     }
 
     .cv {
@@ -892,6 +933,9 @@
       max-width: 90%;
       height: auto;
       overflow: visible;
+      transform: translateY(var(--p, 0%));
+      transition: transform 0.08s linear;
+      will-change: transform;
     }
 
     .wm>svg.w path {
@@ -918,6 +962,8 @@
       pointer-events: none;
       transform: translateY(var(--p2, 6%));
       filter: drop-shadow(0 4px 14px rgba(0, 0, 0, 0.09));
+      transition: transform 0.08s linear;
+      will-change: transform;
     }
 
     .ck {
@@ -1265,21 +1311,6 @@
       <path d="m10.500 15.500 3.200 3.200 6-7" fill="none" stroke="#fff" stroke-width="2.400" />
     </svg></button>
 
-  <script src="https://unpkg.com/lenis@1.1.18/dist/lenis.min.js">
-    const lenis = new Lenis({
-      duration: 8.4,
-      wheelMultiplier: 0.6,
-      touchMultiplier: 1.0,
-      infinite: false,
-    });
-
-    function raf(time) {
-      lenis.raf(time);
-      requestAnimationFrame(raf);
-    }
-    requestAnimationFrame(raf);
-
-  </script>
 
   <script>
     const $ = s => document.querySelector(s), B = document.body, H = document.documentElement, pg = $('#pg');
@@ -1413,11 +1444,42 @@
     </article>`;
       }).join('');
 
-      // Observe cards for smooth entrance
-      const io = new IntersectionObserver(es => es.forEach(e => {
-        if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target) }
-      }), { threshold: .12 });
-      document.querySelectorAll('.card').forEach(c => io.observe(c));
+      // Observe cards for smooth entrance - strictly triggers when more than 50% of the card is on viewport
+      if ('IntersectionObserver' in window) {
+        const io = new IntersectionObserver((entries) => {
+          entries.forEach(entry => {
+            const rect = entry.boundingClientRect;
+            const vh = window.innerHeight || document.documentElement.clientHeight;
+            const visibleHeight = Math.max(0, Math.min(rect.bottom, vh) - Math.max(rect.top, 0));
+            const ratio = rect.height > 0 ? (visibleHeight / rect.height) : 0;
+
+            // Trigger when more than 50% of the component is on the viewport
+            if (entry.isIntersecting && (entry.intersectionRatio >= 0.5 || ratio >= 0.5)) {
+              entry.target.classList.add('in');
+              io.unobserve(entry.target);
+            }
+          });
+        }, {
+          threshold: [0, 0.25, 0.5, 0.75, 1.0]
+        });
+
+        document.querySelectorAll('.card:not(.in)').forEach(c => io.observe(c));
+
+        // Immediate check for cards already >50% in viewport on load
+        requestAnimationFrame(() => {
+          document.querySelectorAll('.card:not(.in)').forEach(c => {
+            const rect = c.getBoundingClientRect();
+            const vh = window.innerHeight || document.documentElement.clientHeight;
+            const visibleH = Math.max(0, Math.min(rect.bottom, vh) - Math.max(rect.top, 0));
+            if (rect.height > 0 && (visibleH / rect.height) >= 0.5) {
+              c.classList.add('in');
+              io.unobserve(c);
+            }
+          });
+        });
+      } else {
+        document.querySelectorAll('.card').forEach(c => c.classList.add('in'));
+      }
     }
 
     function setFilter(cat) {
@@ -1567,6 +1629,64 @@
         requestAnimationFrame(f);
       })();
     }
+
+    // Passive scroll check ensuring cards animate when >50% visible during fast scrolls
+    function checkCardsVisibility() {
+      const unrevealed = document.querySelectorAll('.card:not(.in)');
+      if (!unrevealed.length) return;
+      const vh = window.innerHeight || document.documentElement.clientHeight;
+      unrevealed.forEach(c => {
+        const rect = c.getBoundingClientRect();
+        const visibleH = Math.max(0, Math.min(rect.bottom, vh) - Math.max(rect.top, 0));
+        if (rect.height > 0 && (visibleH / rect.height) >= 0.5) {
+          c.classList.add('in');
+        }
+      });
+    }
+    window.addEventListener('scroll', checkCardsVisibility, { passive: true });
+
+    /* --- 100% Standalone Smooth, Slower Wheel Scroll (Zero External CDNs) --- */
+    (() => {
+      const SCROLL_SPEED = 0.68;
+      const SMOOTH_FACTOR = 0.085;
+      let targetY = window.scrollY;
+      let currentY = window.scrollY;
+      let isMoving = false;
+
+      window.addEventListener('scroll', () => {
+        if (!isMoving) {
+          targetY = window.scrollY;
+          currentY = window.scrollY;
+        }
+      }, { passive: true });
+
+      window.addEventListener('wheel', (e) => {
+        if (e.ctrlKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+        if ($('#mdWrap')?.classList.contains('open') || B.classList.contains('open')) return;
+
+        e.preventDefault();
+        const maxScroll = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+        targetY = Math.max(0, Math.min(maxScroll, targetY + e.deltaY * SCROLL_SPEED));
+
+        if (!isMoving) {
+          isMoving = true;
+          requestAnimationFrame(smoothStep);
+        }
+      }, { passive: false });
+
+      function smoothStep() {
+        const diff = targetY - currentY;
+        if (Math.abs(diff) > 0.4) {
+          currentY += diff * SMOOTH_FACTOR;
+          window.scrollTo(0, Math.round(currentY));
+          requestAnimationFrame(smoothStep);
+        } else {
+          currentY = targetY;
+          window.scrollTo(0, targetY);
+          isMoving = false;
+        }
+      }
+    })();
   </script>
 </body>
 
